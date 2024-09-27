@@ -44,24 +44,35 @@ def stream_data():
       import json
       from kafka import KafkaProducer
       import time
-      res = get_data()
-      res = format_data(res)
+      import logging
       
       #print(json.dumps(res, indent=3, ensure_ascii=False))
 
-      producer = KafkaProducer(bootstrap_servers=['localhost:9092'], max_block_ms=5000)
+      producer = KafkaProducer(bootstrap_servers=['broker:29092'], max_block_ms=5000)
 
-      producer.send('users_created',json.dumps(res).encode('utf-8'))
+      current_time = time.time()
 
 
-# with DAG('user_automation',
-#          default_args=default_args,
-#          schedule_interval='@daily',
-#          catchup=False) as dag:
-    
-#     streaming_task = PythonOperator(
-#         task_id='stream_date_from_api',
-#         python_callable=stream_date
-#     )
+      while True:
+            if time.time() > current_time + 60:
+                break
+            try:
+                res = get_data()
+                res = format_data(res)
+                producer.send('users_created',json.dumps(res).encode('utf-8'))
+            except Exception as e:
+                logging.error(f'An error occured: {e}')
+                continue
 
-stream_data()
+
+with DAG('user_automation',
+         default_args=default_args,
+         schedule_interval='@daily',
+         catchup=False) as dag:
+
+    streaming_task = PythonOperator(
+        task_id='stream_data_from_api',
+        python_callable=stream_data
+    )
+
+#stream_data()
